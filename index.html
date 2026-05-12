@@ -573,7 +573,7 @@ function buildCard(id) {
 // ── 從 GAS 讀取上次時數 ────────────────────
 async function loadLastValues() {
   try {
-    const res  = await fetch(GAS_URL);
+    const res  = await fetch(GAS_URL, { credentials: 'omit', redirect: 'follow' });
     const data = await res.json();
 
     ZONES.forEach(zone => zone.machines.forEach(id => {
