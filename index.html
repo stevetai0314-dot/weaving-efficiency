@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>織帶機台效率登記</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f0f2f5;
+    color: #1a1a2e;
+    min-height: 100vh;
+  }
+
+  #sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+
+  header {
+    background: #1a237e;
+    color: white;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  header h1 { font-size: 16px; font-weight: 800; line-height: 1.2; }
+
+  /* 語言切換按鈕 */
+  #lang-btn {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    background: rgba(255,255,255,0.15);
+    border: 1.5px solid rgba(255,255,255,0.4);
+    border-radius: 20px;
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #lang-btn:active { background: rgba(255,255,255,0.3); }
+
+  .shift-bar {
+    background: #283593;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .shift-bar label {
+    color: rgba(255,255,255,0.75);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .shift-bar select {
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: none;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1a237e;
+    background: white;
+    outline: none;
+    cursor: pointer;
+  }
+  .shift-bar .date-display {
+    margin-left: auto;
+    color: rgba(255,255,255,0.8);
+    font-size: 12px;
+  }
+
+  .zone-tabs {
+    display: flex;
+    background: #e8eaf6;
+    border-bottom: 2px solid #c5cae9;
+  }
+  .zone-tab {
+    flex: 1;
+    padding: 9px 4px 7px;
+    text-align: center;
+    color: #5c6bc0;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .zone-tab.active {
+    color: #1a237e;
+    border-bottom-color: #1a237e;
+    background: white;
+  }
+  .zone-tab .cnt {
+    display: inline-block;
+    font-size: 10px;
+    background: #c5cae9;
+    border-radius: 8px;
+    padding: 0 5px;
+    margin-left: 3px;
+  }
+  .zone-tab.active .cnt { background: #1a237e; color: white; }
+
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px;
+    background: #f5f5f5;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  .progress-bar { flex: 1; background: #e0e0e0; height: 6px; border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, #1565c0, #42a5f5); border-radius: 3px; transition: width 0.3s; }
+  .progress-text { font-size: 12px; color: #555; white-space: nowrap; }
+
+  /* 輸入提示橫幅 */
+  .input-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 10px 12px 2px;
+    padding: 10px 12px;
+    background: #fff8e1;
+    border: 1.5px solid #ffe082;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #5d4037;
+    line-height: 1.5;
+  }
+  .input-notice .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+  .zone-content { display: none; padding: 4px 12px 120px; }
+  .zone-content.active { display: block; }
+
+  .machine-card {
+    background: white;
+    border-radius: 10px;
+    margin-bottom: 9px;
+    padding: 12px 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border-left: 4px solid #1565c0;
+    transition: border-left-color 0.2s, background 0.2s, opacity 0.2s;
+  }
+  .machine-card.filled  { border-left-color: #2e7d32; }
+  .machine-card.stopped { border-left-color: #c62828; background: #fff5f5; opacity: 0.80; }
+
+  .card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .machine-num {
+    font-size: 24px;
+    font-weight: 900;
+    color: #1a237e;
+    line-height: 1;
+  }
+  .machine-num small { font-size: 12px; font-weight: 400; color: #888; margin-left: 3px; }
+
+  .efficiency-badge {
+    font-size: 22px;
+    font-weight: 800;
+    color: #bbb;
+    min-width: 56px;
+    text-align: right;
+  }
+  .efficiency-badge.good { color: #2e7d32; }
+  .efficiency-badge.mid  { color: #e65100; }
+  .efficiency-badge.low  { color: #c62828; }
+
+  .card-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 10px;
+    align-items: end;
+  }
+
+  .field label {
+    display: block;
+    font-size: 10px;
+    color: #999;
+    margin-bottom: 3px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  .field .last-val {
+    font-size: 16px;
+    color: #444;
+    padding: 7px 10px;
+    background: #f5f5f5;
+    border-radius: 6px;
+    font-weight: 700;
+  }
+  .field input[type="number"] {
+    width: 100%;
+    font-size: 18px;
+    font-weight: 800;
+    padding: 7px 10px;
+    border: 2px solid #c5cae9;
+    border-radius: 6px;
+    color: #1a237e;
+    outline: none;
+    -moz-appearance: textfield;
+    transition: border-color 0.15s;
+    background: white;
+  }
+  .field input[type="number"]::-webkit-outer-spin-button,
+  .field input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .field input[type="number"]:focus { border-color: #1565c0; }
+  .field input[type="number"].invalid { border-color: #c62828; background: #fff5f5; }
+  .field input[type="number"]:disabled { background: #eee; color: #aaa; border-color: #ddd; }
+
+  .stop-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 8px 10px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    font-size: 11px;
+    color: #888;
+    font-weight: 700;
+    transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    min-width: 52px;
+    height: 100%;
+  }
+  .stop-btn .icon { font-size: 18px; }
+  .stop-btn:active { transform: scale(0.95); }
+  .stop-btn.active { background: #c62828; border-color: #c62828; color: white; }
+
+  .submit-area {
+    padding: 14px 16px;
+    background: white;
+    border-top: 1px solid #e0e0e0;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 90;
+  }
+  .submit-btn {
+    width: 100%;
+    padding: 15px;
+    background: #1a237e;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .submit-btn:active { background: #283593; }
+
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 14px;
+    padding: 22px;
+    width: 100%;
+    max-width: 400px;
+  }
+  .modal h2 { font-size: 17px; color: #1a237e; margin-bottom: 14px; }
+  .modal-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .stat-box { background: #f5f5f5; border-radius: 8px; padding: 12px 8px; text-align: center; }
+  .stat-box .val { font-size: 26px; font-weight: 900; }
+  .stat-box .lbl { font-size: 10px; color: #888; margin-top: 2px; }
+  .stat-box.green .val { color: #2e7d32; }
+  .stat-box.grey .val  { color: #c62828; }
+  .stat-box.red .val   { color: #c62828; }
+  .rate-row { text-align: center; padding: 10px; background: #e8eaf6; border-radius: 8px; margin-bottom: 14px; }
+  .rate-row .rate-num { font-size: 28px; font-weight: 900; color: #1a237e; }
+  .rate-row .rate-lbl { font-size: 12px; color: #5c6bc0; }
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-actions button { flex: 1; padding: 13px; border-radius: 8px; border: none; font-size: 14px; font-weight: 800; cursor: pointer; }
+  .btn-cancel  { background: #f5f5f5; color: #333; }
+  .btn-confirm { background: #1a237e; color: white; }
+
+  @media (min-width: 540px) {
+    .zone-content { max-width: 540px; margin: 0 auto; padding-left: 0; padding-right: 0; }
+    .submit-area  { max-width: 540px; left: 50%; transform: translateX(-50%); border-radius: 14px 14px 0 0; }
+  }
+</style>
+</head>
+<body>
+
+<div id="sticky-top">
+  <header>
+    <h1 id="t-title">織帶機台效率登記</h1>
+    <button id="lang-btn" onclick="toggleLang()">Tiếng Việt</button>
+  </header>
+
+  <div class="shift-bar">
+    <label id="t-shift-lbl">班別</label>
+    <select id="sel-shift">
+      <option value="">— 選擇 —</option>
+      <option value="day">白班 (06:00–18:00)</option>
+      <option value="night">夜班 (18:00–06:00)</option>
+    </select>
+
+    <label id="t-group-lbl">組別</label>
+    <select id="sel-group">
+      <option value="">— 選擇 —</option>
+      <option value="A">A 組</option>
+      <option value="B">B 組</option>
+      <option value="C">C 組</option>
+      <option value="D">D 組</option>
+    </select>
+
+    <div class="date-display" id="date-display"></div>
+  </div>
+
+  <div class="zone-tabs">
+    <div class="zone-tab active" onclick="switchZone(0)"><span id="zt0">第一區</span><span class="cnt" id="cnt0">0/52</span></div>
+    <div class="zone-tab" onclick="switchZone(1)"><span id="zt1">第二區</span><span class="cnt" id="cnt1">0/52</span></div>
+    <div class="zone-tab" onclick="switchZone(2)"><span id="zt2">第三區</span><span class="cnt" id="cnt2">0/39</span></div>
+    <div class="zone-tab" onclick="switchZone(3)"><span id="zt3">第四區</span><span class="cnt" id="cnt3">0/52</span></div>
+  </div>
+
+  <div class="progress-row">
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <div class="progress-text" id="progress-text">0 / 195 台</div>
+  </div>
+</div>
+
+<div class="input-notice" id="input-notice">
+  <span class="icon">⚠️</span>
+  <span id="t-notice">請直接輸入數字，<strong>不需要打小數點</strong>。例：138.4 小時 → 輸入 <strong>1384</strong></span>
+</div>
+
+<div id="zone-panels"></div>
+
+<div class="submit-area">
+  <button class="submit-btn" id="t-submit" onclick="openSummary()">確認送出本班資料</button>
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h2 id="t-modal-title">送出確認</h2>
+    <div class="modal-stats">
+      <div class="stat-box green"><div class="val" id="sum-running">0</div><div class="lbl" id="t-lbl-running">開機</div></div>
+      <div class="stat-box grey"><div class="val" id="sum-stop">0</div><div class="lbl" id="t-lbl-stop">停機</div></div>
+      <div class="stat-box red"><div class="val" id="sum-empty">0</div><div class="lbl" id="t-lbl-empty">未填</div></div>
+    </div>
+    <div class="rate-row">
+      <div class="rate-num" id="sum-rate">—</div>
+      <div class="rate-lbl" id="t-rate-lbl">整體稼動率</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="t-btn-cancel" onclick="closeModal()">返回修改</button>
+      <button class="btn-confirm" id="t-btn-confirm" onclick="submitData()">確認送出</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── GAS API 網址（部署後填入）──────────────
+const GAS_URL = 'YOUR_GAS_URL_HERE';
+
+// ── 翻譯資料 ──────────────────────────────
+const T = {
+  zh: {
+    title:        "織帶機台效率登記",
+    lang_btn:     "Tiếng Việt",
+    shift_lbl:    "班別",
+    group_lbl:    "組別",
+    shift_ph:     "— 選擇 —",
+    shift_day:    "白班 (06:00–18:00)",
+    shift_night:  "夜班 (18:00–06:00)",
+    group_ph:     "— 選擇 —",
+    group_A: "A 組", group_B: "B 組", group_C: "C 組", group_D: "D 組",
+    zones:        ["第一區","第二區","第三區","第四區"],
+    machine_lbl:  (id) => `${id}<small>號</small>`,
+    last_lbl:     "上次登記（小時）",
+    curr_lbl:     "本次登記（小時）",
+    stop_btn:     "停機",
+    stopped_badge:"停",
+    progress:     (d,t) => `${d} / ${t} 台`,
+    submit:       "確認送出本班資料",
+    modal_title:  "送出確認",
+    lbl_running:  "開機",
+    lbl_stop:     "停機",
+    lbl_empty:    "未填",
+    rate_lbl:     "整體稼動率",
+    btn_cancel:   "返回修改",
+    btn_confirm:  "確認送出",
+    alert_ok:     "資料送出成功（示範）",
+    notice:       "請直接輸入數字，<strong>不需要打小數點</strong>。例：138.4 小時 → 輸入 <strong>1384</strong>",
+    loading:      "讀取上次資料中…",
+    load_fail:    "讀取失敗",
+    load_none:    "—",
+    submit_ing:   "送出中…",
+    submit_fail:  "送出失敗，請重試",
+  },
+  vi: {
+    title:        "Đăng ký hiệu suất máy dệt băng",
+    lang_btn:     "中文",
+    shift_lbl:    "Ca làm việc",
+    group_lbl:    "Tổ",
+    shift_ph:     "— Chọn —",
+    shift_day:    "Ca ngày (06:00–18:00)",
+    shift_night:  "Ca đêm (18:00–06:00)",
+    group_ph:     "— Chọn —",
+    group_A: "Tổ A", group_B: "Tổ B", group_C: "Tổ C", group_D: "Tổ D",
+    zones:        ["Khu 1","Khu 2","Khu 3","Khu 4"],
+    machine_lbl:  (id) => `<small>Máy</small> ${id}`,
+    last_lbl:     "Lần trước (giờ)",
+    curr_lbl:     "Lần này (giờ)",
+    stop_btn:     "Dừng",
+    stopped_badge:"Dừng",
+    progress:     (d,t) => `${d} / ${t} máy`,
+    submit:       "Xác nhận gửi dữ liệu ca này",
+    modal_title:  "Xác nhận gửi",
+    lbl_running:  "Đang chạy",
+    lbl_stop:     "Dừng máy",
+    lbl_empty:    "Chưa điền",
+    rate_lbl:     "Tỷ lệ hoạt động",
+    btn_cancel:   "Quay lại",
+    btn_confirm:  "Xác nhận gửi",
+    alert_ok:     "Gửi dữ liệu thành công (thử nghiệm)",
+    notice:       "Nhập số nguyên, <strong>không cần dấu thập phân</strong>. Ví dụ: 138.4 giờ → nhập <strong>1384</strong>",
+    loading:      "Đang tải dữ liệu…",
+    load_fail:    "Tải thất bại",
+    load_none:    "—",
+    submit_ing:   "Đang gửi…",
+    submit_fail:  "Gửi thất bại, vui lòng thử lại",
+  }
+};
+
+// 每台機台的上次時數（從 GAS 帶入後填充）
+const lastHoursMap = {};
+
+// ── Máy Data ─────────────────────────────
+const ZONES = [
+  { machines:[51,53,55,57,59,61,63,65,67,69,71,73,75,52,54,56,58,60,62,64,66,68,70,72,74,76,77,79,81,83,85,87,89,91,93,95,97,99,153,78,80,82,84,86,88,90,92,94,96,98,100,154] },
+  { machines:[1,179,181,183,185,187,189,15,17,19,21,23,25,2,4,6,8,10,12,14,16,18,20,22,24,26,27,29,31,33,35,37,39,41,43,45,47,49,151,28,30,32,34,36,38,40,42,44,46,48,50,152] },
+  { machines:[157,159,161,163,165,167,169,171,173,175,177,3,5,158,160,162,164,166,168,170,172,174,176,178,180,182,7,9,11,13,191,193,195,184,186,188,190,192,194] },
+  { machines:[101,103,105,107,109,111,113,115,117,119,121,123,125,102,104,106,108,110,112,114,116,118,120,122,124,126,127,129,131,133,135,137,139,141,143,145,147,149,155,128,130,132,134,136,138,140,142,144,146,148,150,156] }
+];
+
+let lang = "zh";
+const state = {};
+
+// ── 語言切換 ──────────────────────────────
+function toggleLang() {
+  lang = lang === "zh" ? "vi" : "zh";
+  applyLang();
+}
+
+function applyLang() {
+  const t = T[lang];
+  // Header
+  document.getElementById("t-title").textContent = t.title;
+  document.getElementById("lang-btn").textContent = t.lang_btn;
+  // Shift bar
+  document.getElementById("t-shift-lbl").textContent = t.shift_lbl;
+  document.getElementById("t-group-lbl").textContent = t.group_lbl;
+  const shiftSel = document.getElementById("sel-shift");
+  shiftSel.options[0].textContent = t.shift_ph;
+  shiftSel.options[1].textContent = t.shift_day;
+  shiftSel.options[2].textContent = t.shift_night;
+  const grpSel = document.getElementById("sel-group");
+  grpSel.options[0].textContent = t.group_ph;
+  grpSel.options[1].textContent = t.group_A;
+  grpSel.options[2].textContent = t.group_B;
+  grpSel.options[3].textContent = t.group_C;
+  grpSel.options[4].textContent = t.group_D;
+  // Zone tabs
+  t.zones.forEach((name, i) => { document.getElementById("zt"+i).textContent = name; });
+  // Cards
+  ZONES.forEach(zone => zone.machines.forEach(id => {
+    document.getElementById("mnum-"+id).innerHTML = t.machine_lbl(id);
+    document.getElementById("llbl-"+id).textContent = t.last_lbl;
+    document.getElementById("clbl-"+id).textContent = t.curr_lbl;
+    document.getElementById("stxt-"+id).textContent = t.stop_btn;
+    if (state[id]?.stopped) document.getElementById("eff-"+id).textContent = t.stopped_badge;
+  }));
+  // Submit & modal
+  document.getElementById("t-submit").textContent = t.submit;
+  document.getElementById("t-modal-title").textContent = t.modal_title;
+  document.getElementById("t-lbl-running").textContent = t.lbl_running;
+  document.getElementById("t-lbl-stop").textContent = t.lbl_stop;
+  document.getElementById("t-lbl-empty").textContent = t.lbl_empty;
+  document.getElementById("t-rate-lbl").textContent = t.rate_lbl;
+  document.getElementById("t-btn-cancel").textContent = t.btn_cancel;
+  document.getElementById("t-btn-confirm").textContent = t.btn_confirm;
+  // Notice
+  document.getElementById("t-notice").innerHTML = t.notice;
+  // Progress text
+  updateAll();
+}
+
+// ── Init ──────────────────────────────────
+function init() {
+  const now = new Date();
+  document.getElementById("date-display").textContent =
+    now.toLocaleDateString("zh-TW",{year:"numeric",month:"2-digit",day:"2-digit"});
+  const h = now.getHours();
+  document.getElementById("sel-shift").value = (h >= 6 && h < 18) ? "day" : "night";
+
+  ZONES.forEach(z => z.machines.forEach(id => { state[id] = { stopped: false }; }));
+
+  const container = document.getElementById("zone-panels");
+  ZONES.forEach((zone, zi) => {
+    const panel = document.createElement("div");
+    panel.className = "zone-content" + (zi===0 ? " active" : "");
+    panel.id = "zone-" + zi;
+    panel.innerHTML = zone.machines.map(id => buildCard(id)).join("");
+    container.appendChild(panel);
+  });
+
+  loadLastValues();
+}
+
+function buildCard(id) {
+  const t = T[lang];
+  return `
+  <div class="machine-card" id="card-${id}">
+    <div class="card-top">
+      <div class="machine-num" id="mnum-${id}">${t.machine_lbl(id)}</div>
+      <div class="efficiency-badge" id="eff-${id}">—</div>
+    </div>
+    <div class="card-body">
+      <div class="field">
+        <label id="llbl-${id}">${t.last_lbl}</label>
+        <div class="last-val" id="lv-${id}" style="color:#aaa;font-size:13px">…</div>
+      </div>
+      <div class="field">
+        <label id="clbl-${id}">${t.curr_lbl}</label>
+        <input type="number" inputmode="decimal" placeholder="0"
+          id="inp-${id}" data-last="0" oninput="onInput(${id})" disabled>
+      </div>
+      <button class="stop-btn" id="stopbtn-${id}" onclick="toggleStop(${id})" disabled>
+        <span class="icon">⏸</span>
+        <span id="stxt-${id}">${t.stop_btn}</span>
+      </button>
+    </div>
+  </div>`;
+}
+
+// ── 從 GAS 讀取上次時數 ────────────────────
+async function loadLastValues() {
+  try {
+    const res  = await fetch(GAS_URL);
+    const data = await res.json();
+
+    ZONES.forEach(zone => zone.machines.forEach(id => {
+      const lv  = document.getElementById('lv-'  + id);
+      const inp = document.getElementById('inp-' + id);
+      const btn = document.getElementById('stopbtn-' + id);
+      const val = data[String(id)];
+
+      if (val !== undefined && val !== null && val !== '') {
+        lastHoursMap[id] = val;
+        lv.textContent  = Number(val).toLocaleString();
+        lv.style.color  = '';
+        lv.style.fontSize = '';
+        inp.dataset.last = val;
+      } else {
+        lv.textContent  = T[lang].load_none;
+        lv.style.color  = '';
+        inp.dataset.last = '0';
+      }
+      inp.disabled = false;
+      btn.disabled = false;
+    }));
+  } catch (err) {
+    ZONES.forEach(zone => zone.machines.forEach(id => {
+      const lv  = document.getElementById('lv-'  + id);
+      const inp = document.getElementById('inp-' + id);
+      const btn = document.getElementById('stopbtn-' + id);
+      lv.textContent = T[lang].load_fail;
+      lv.style.color = '#c62828';
+      inp.disabled = false;
+      btn.disabled = false;
+    }));
+  }
+  updateAll();
+}
+
+// ── 互動 ──────────────────────────────────
+function onInput(id) {
+  const inp = document.getElementById("inp-"+id);
+  const val = parseFloat(inp.value);
+  const last = parseFloat(inp.dataset.last);
+  inp.classList.remove("invalid");
+  const effEl = document.getElementById("eff-"+id);
+  const card  = document.getElementById("card-"+id);
+
+  if (inp.value === "" || isNaN(val)) {
+    effEl.textContent = "—"; effEl.className = "efficiency-badge";
+    card.className = "machine-card";
+  } else if (val < last) {
+    inp.classList.add("invalid");
+    effEl.textContent = "?"; effEl.className = "efficiency-badge";
+    card.className = "machine-card";
+  } else {
+    const eff = (val - last) / 120;  // ÷10（去小數點）÷12（班次）
+    effEl.textContent = (eff * 100).toFixed(1) + "%";
+    effEl.className = "efficiency-badge " + (eff >= 0.85 ? "good" : eff >= 0.6 ? "mid" : "low");
+    card.className = "machine-card filled";
+  }
+  updateAll();
+}
+
+function toggleStop(id) {
+  state[id].stopped = !state[id].stopped;
+  const inp  = document.getElementById("inp-"+id);
+  const btn  = document.getElementById("stopbtn-"+id);
+  const effEl= document.getElementById("eff-"+id);
+  const card = document.getElementById("card-"+id);
+
+  if (state[id].stopped) {
+    btn.classList.add("active");
+    inp.disabled = true; inp.value = "";
+    effEl.textContent = T[lang].stopped_badge;
+    effEl.className = "efficiency-badge";
+    card.className = "machine-card stopped";
+  } else {
+    btn.classList.remove("active");
+    inp.disabled = false;
+    effEl.textContent = "—"; effEl.className = "efficiency-badge";
+    card.className = "machine-card";
+  }
+  updateAll();
+}
+
+function isFilled(id) {
+  if (state[id].stopped) return true;
+  const inp = document.getElementById("inp-"+id);
+  if (!inp) return false;
+  const val = parseFloat(inp.value), last = parseFloat(inp.dataset.last);
+  return !isNaN(val) && val >= last;
+}
+
+function updateAll() {
+  const allIds = ZONES.flatMap(z => z.machines);
+  const total = allIds.length;
+  const done  = allIds.filter(isFilled).length;
+  const pct   = Math.round(done / total * 100);
+  document.getElementById("progress-fill").style.width = pct + "%";
+  document.getElementById("progress-text").textContent = T[lang].progress(done, total);
+  ZONES.forEach((zone,zi) => {
+    const d = zone.machines.filter(isFilled).length;
+    document.getElementById("cnt"+zi).textContent = d+"/"+zone.machines.length;
+  });
+}
+
+function switchZone(zi) {
+  document.querySelectorAll(".zone-tab").forEach((t,i) => t.classList.toggle("active", i===zi));
+  document.querySelectorAll(".zone-content").forEach((p,i) => p.classList.toggle("active", i===zi));
+}
+
+function openSummary() {
+  const allIds = ZONES.flatMap(z => z.machines);
+  let running=0, stopped=0, empty=0, totalEff=0, effCount=0;
+  allIds.forEach(id => {
+    if (state[id].stopped) { stopped++; return; }
+    const inp  = document.getElementById("inp-"+id);
+    const val  = parseFloat(inp?.value);
+    const last = parseFloat(inp?.dataset.last);
+    if (!isNaN(val) && val >= last) {
+      running++; totalEff += (val-last)/120; effCount++;
+    } else { empty++; }
+  });
+  document.getElementById("sum-running").textContent = running;
+  document.getElementById("sum-stop").textContent    = stopped;
+  document.getElementById("sum-empty").textContent   = empty;
+  document.getElementById("sum-rate").textContent    =
+    effCount > 0 ? (totalEff/effCount*100).toFixed(1)+"%" : "—";
+  document.getElementById("modal-overlay").classList.add("show");
+}
+
+function closeModal() { document.getElementById("modal-overlay").classList.remove("show"); }
+
+async function submitData() {
+  closeModal();
+  const btn = document.getElementById('t-btn-confirm');
+  btn.textContent = T[lang].submit_ing;
+  btn.disabled = true;
+
+  const allIds = ZONES.flatMap(z => z.machines);
+  const records = allIds.map(id => {
+    const inp         = document.getElementById('inp-' + id);
+    const lastHours   = parseFloat(inp.dataset.last) || 0;
+    const currentHours= parseFloat(inp.value) || 0;
+    const stopped     = state[id].stopped;
+    const efficiency  = stopped ? null
+      : parseFloat(((currentHours - lastHours) / 120 * 100).toFixed(1));
+    return { machineId: id, lastHours, currentHours, efficiency, stopped };
+  });
+
+  const payload = {
+    shift:   document.getElementById('sel-shift').value,
+    group:   document.getElementById('sel-group').value,
+    records,
+  };
+
+  try {
+    await fetch(GAS_URL, {
+      method: 'POST',
+      body: new URLSearchParams({ data: JSON.stringify(payload) }),
+    });
+    alert('✅ ' + T[lang].alert_ok);
+  } catch (err) {
+    alert('❌ ' + T[lang].submit_fail);
+  } finally {
+    btn.textContent = T[lang].btn_confirm;
+    btn.disabled = false;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
