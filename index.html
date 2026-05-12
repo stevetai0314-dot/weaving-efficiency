@@ -319,7 +319,15 @@
 <div id="sticky-top">
   <header>
     <h1 id="t-title">織帶機台效率登記</h1>
-    <button id="lang-btn" onclick="toggleLang()">Tiếng Việt</button>
+    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+      <a href="https://docs.google.com/spreadsheets/d/1cVAV8odDf457CJHGuV_Yy7JOB97vbiCWy2Y4x-bfE4M/edit?gid=1549067617#gid=1549067617"
+         target="_blank"
+         style="display:flex;align-items:center;gap:4px;padding:6px 10px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.4);border-radius:20px;color:white;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;"
+         title="開啟資料庫">
+        📊 <span id="t-sheet-link">資料庫</span>
+      </a>
+      <button id="lang-btn" onclick="toggleLang()">Tiếng Việt</button>
+    </div>
   </header>
 
   <div class="shift-bar">
@@ -416,6 +424,7 @@ const T = {
     rate_lbl:     "整體稼動率",
     btn_cancel:   "返回修改",
     btn_confirm:  "確認送出",
+    sheet_link:   "資料庫",
     alert_ok:     "資料送出成功（示範）",
     notice:       "請直接輸入數字，<strong>不需要打小數點</strong>。例：138.4 小時 → 輸入 <strong>1384</strong>",
     loading:      "讀取上次資料中…",
@@ -449,6 +458,7 @@ const T = {
     rate_lbl:     "Tỷ lệ hoạt động",
     btn_cancel:   "Quay lại",
     btn_confirm:  "Xác nhận gửi",
+    sheet_link:   "Dữ liệu",
     alert_ok:     "Gửi dữ liệu thành công (thử nghiệm)",
     notice:       "Nhập số nguyên, <strong>không cần dấu thập phân</strong>. Ví dụ: 138.4 giờ → nhập <strong>1384</strong>",
     loading:      "Đang tải dữ liệu…",
@@ -484,6 +494,7 @@ function applyLang() {
   // Header
   document.getElementById("t-title").textContent = t.title;
   document.getElementById("lang-btn").textContent = t.lang_btn;
+  document.getElementById("t-sheet-link").textContent = t.sheet_link;
   // Shift bar
   document.getElementById("t-shift-lbl").textContent = t.shift_lbl;
   document.getElementById("t-group-lbl").textContent = t.group_lbl;
