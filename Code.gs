@@ -61,7 +61,7 @@ function doPost(e) {
       sheet.setFrozenRows(1);
     }
 
-    const ts      = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
+    const ts      = Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'yyyy-MM-dd HH:mm:ss');
     const shift   = payload.shift;
     const group   = payload.group;
     const records = payload.records;
