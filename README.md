@@ -1,5 +1,7 @@
 # 織帶機台效率登記系統
 
+**🔗 使用連結：[https://stevetai0314-dot.github.io/weaving-efficiency/](https://stevetai0314-dot.github.io/weaving-efficiency/)**
+
 手機版表單，讓各廠班別人員逐台輸入時數，自動計算稼動率並存入 Google Sheets。
 
 ---
