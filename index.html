@@ -32,7 +32,6 @@
   }
   header h1 { font-size: 16px; font-weight: 800; line-height: 1.2; }
 
-  /* 語言切換按鈕 */
   #lang-btn {
     flex-shrink: 0;
     padding: 6px 12px;
@@ -125,7 +124,6 @@
   .progress-fill { height: 100%; background: linear-gradient(90deg, #1565c0, #42a5f5); border-radius: 3px; transition: width 0.3s; }
   .progress-text { font-size: 12px; color: #555; white-space: nowrap; }
 
-  /* 輸入提示橫幅 */
   .input-notice {
     display: flex;
     align-items: flex-start;
@@ -331,6 +329,13 @@
   </header>
 
   <div class="shift-bar">
+    <label id="t-factory-lbl">廠別</label>
+    <select id="sel-factory" onchange="switchFactory(this.value)">
+      <option value="織一">織一</option>
+      <option value="織二">織二</option>
+      <option value="織三">織三</option>
+    </select>
+
     <label id="t-shift-lbl">班別</label>
     <select id="sel-shift">
       <option value="">— 選擇 —</option>
@@ -350,16 +355,11 @@
     <div class="date-display" id="date-display"></div>
   </div>
 
-  <div class="zone-tabs">
-    <div class="zone-tab active" onclick="switchZone(0)"><span id="zt0">第一區</span><span class="cnt" id="cnt0">0/52</span></div>
-    <div class="zone-tab" onclick="switchZone(1)"><span id="zt1">第二區</span><span class="cnt" id="cnt1">0/52</span></div>
-    <div class="zone-tab" onclick="switchZone(2)"><span id="zt2">第三區</span><span class="cnt" id="cnt2">0/39</span></div>
-    <div class="zone-tab" onclick="switchZone(3)"><span id="zt3">第四區</span><span class="cnt" id="cnt3">0/52</span></div>
-  </div>
+  <div class="zone-tabs" id="zone-tabs"></div>
 
   <div class="progress-row">
     <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
-    <div class="progress-text" id="progress-text">0 / 195 台</div>
+    <div class="progress-text" id="progress-text">0 / 0 台</div>
   </div>
 </div>
 
@@ -394,14 +394,14 @@
 </div>
 
 <script>
-// ── GAS API 網址（部署後填入）──────────────
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwHdokXA75eCoLJJSqwhfcT6bG8v2h51MHgouduTAAwF4h-P-AOuaqop3YhgBc1ekjx/exec';
 
-// ── 翻譯資料 ──────────────────────────────
 const T = {
   zh: {
     title:        "織帶機台效率登記",
     lang_btn:     "Tiếng Việt",
+    factory_lbl:  "廠別",
+    factory_names:["織一","織二","織三"],
     shift_lbl:    "班別",
     group_lbl:    "組別",
     shift_ph:     "— 選擇 —",
@@ -409,7 +409,6 @@ const T = {
     shift_night:  "夜班 (18:00–06:00)",
     group_ph:     "— 選擇 —",
     group_A: "A 組", group_B: "B 組", group_C: "C 組", group_D: "D 組",
-    zones:        ["第一區","第二區","第三區","第四區"],
     machine_lbl:  (id) => `${id}<small>號</small>`,
     last_lbl:     "上次登記（小時）",
     curr_lbl:     "本次登記（小時）",
@@ -425,7 +424,7 @@ const T = {
     btn_cancel:   "返回修改",
     btn_confirm:  "確認送出",
     sheet_link:   "資料庫",
-    alert_ok:     "資料送出成功（示範）",
+    alert_ok:     "資料送出成功",
     notice:       "請直接輸入數字，<strong>不需要打小數點</strong>。例：138.4 小時 → 輸入 <strong>1384</strong>",
     loading:      "讀取上次資料中…",
     load_fail:    "讀取失敗",
@@ -436,6 +435,8 @@ const T = {
   vi: {
     title:        "Đăng ký hiệu suất máy dệt băng",
     lang_btn:     "中文",
+    factory_lbl:  "Chuyền",
+    factory_names:["Dệt 1","Dệt 2","Dệt 3"],
     shift_lbl:    "Ca làm việc",
     group_lbl:    "Tổ",
     shift_ph:     "— Chọn —",
@@ -443,7 +444,6 @@ const T = {
     shift_night:  "Ca đêm (18:00–06:00)",
     group_ph:     "— Chọn —",
     group_A: "Tổ A", group_B: "Tổ B", group_C: "Tổ C", group_D: "Tổ D",
-    zones:        ["Khu 1","Khu 2","Khu 3","Khu 4"],
     machine_lbl:  (id) => `<small>Máy</small> ${id}`,
     last_lbl:     "Lần trước (giờ)",
     curr_lbl:     "Lần này (giờ)",
@@ -459,7 +459,7 @@ const T = {
     btn_cancel:   "Quay lại",
     btn_confirm:  "Xác nhận gửi",
     sheet_link:   "Dữ liệu",
-    alert_ok:     "Gửi dữ liệu thành công (thử nghiệm)",
+    alert_ok:     "Gửi dữ liệu thành công",
     notice:       "Nhập số nguyên, <strong>không cần dấu thập phân</strong>. Ví dụ: 138.4 giờ → nhập <strong>1384</strong>",
     loading:      "Đang tải dữ liệu…",
     load_fail:    "Tải thất bại",
@@ -469,18 +469,28 @@ const T = {
   }
 };
 
-// 每台機台的上次時數（從 GAS 帶入後填充）
 const lastHoursMap = {};
 
-// ── Máy Data ─────────────────────────────
+// 7 zones across 3 factories.
+// pfx: DOM ID prefix to avoid conflicts when machine numbers overlap (織三 vs 織一).
+// label: zone display name per language.
+// Zones 2 & 3 are swapped vs original code to match the Sheets layout (織一第三區=101-156, 織一第四區=157-195).
 const ZONES = [
-  { machines:[1,179,181,183,185,187,189,15,17,19,21,23,25,26,24,22,20,18,16,14,12,10,8,6,4,2,27,29,31,33,35,37,39,41,43,45,47,49,151,152,50,48,46,44,42,40,38,36,34,32,30,28] },
-  { machines:[51,53,55,57,59,61,63,65,67,69,71,73,75,76,74,72,70,68,66,64,62,60,58,56,54,52,77,79,81,83,85,87,89,91,93,95,97,99,153,154,100,98,96,94,92,90,88,86,84,82,80,78] },
-  { machines:[157,159,161,163,165,167,169,171,173,175,177,3,5,182,180,178,176,174,172,170,168,166,164,162,160,158,7,9,11,13,191,193,195,184,186,188,190,192,194] },
-  { machines:[101,103,105,107,109,111,113,115,117,119,121,123,125,126,124,122,120,118,116,114,112,110,108,106,104,102,127,129,131,133,135,137,139,141,143,145,147,149,155,156,150,148,146,144,142,140,138,136,134,132,130,128] }
+  // 織一 — 4 zones
+  { factory:"織一", label:{zh:"第一區",vi:"Khu 1"}, pfx:"", machines:[1,179,181,183,185,187,189,15,17,19,21,23,25,26,24,22,20,18,16,14,12,10,8,6,4,2,27,29,31,33,35,37,39,41,43,45,47,49,151,152,50,48,46,44,42,40,38,36,34,32,30,28] },
+  { factory:"織一", label:{zh:"第二區",vi:"Khu 2"}, pfx:"", machines:[51,53,55,57,59,61,63,65,67,69,71,73,75,76,74,72,70,68,66,64,62,60,58,56,54,52,77,79,81,83,85,87,89,91,93,95,97,99,153,154,100,98,96,94,92,90,88,86,84,82,80,78] },
+  { factory:"織一", label:{zh:"第三區",vi:"Khu 3"}, pfx:"", machines:[101,103,105,107,109,111,113,115,117,119,121,123,125,126,124,122,120,118,116,114,112,110,108,106,104,102,127,129,131,133,135,137,139,141,143,145,147,149,155,156,150,148,146,144,142,140,138,136,134,132,130,128] },
+  { factory:"織一", label:{zh:"第四區",vi:"Khu 4"}, pfx:"", machines:[157,159,161,163,165,167,169,171,173,175,177,3,5,182,180,178,176,174,172,170,168,166,164,162,160,158,7,9,11,13,191,193,195,184,186,188,190,192,194] },
+  // 織二 — 2 zones (machines 201–317, no ID conflict)
+  { factory:"織二", label:{zh:"第一區",vi:"Khu 1"}, pfx:"", machines:[201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,256,257,258,259,260,261,262,263,264,265,266,267,268,269,270,271,272,273,274,275,276,277,278,279,280] },
+  { factory:"織二", label:{zh:"第二區",vi:"Khu 2"}, pfx:"", machines:[281,282,283,284,285,286,287,288,289,290,291,292,293,294,295,296,297,298,299,300,301,302,303,304,305,306,307,308,309,310,311,312,313,314,315,316,317] },
+  // 織三 — 1 zone (uses T3_ DOM prefix to avoid conflicts with 織一 machine numbers 1–86)
+  { factory:"織三", label:{zh:"織三",vi:"Dệt 3"},   pfx:"T3_", machines:[68,67,66,86,65,85,64,84,56,55,81,80,79,78,77,76,71,57,72,58,73,59,74,60,75,61,82,62,83,63,52,41,53,42,54,43,69,44,70,33,32,31,30,29,51,40,50,39,49,38,48,37,47,36,46,35,45,34,22,15,23,16,24,17,25,2,26,4,27,3,6,5,14,7,13,28,12,21,11,19,10,20,9,18,8,1] },
 ];
 
 let lang = "zh";
+let currentFactory = "織一";
+let currentZoneIdx = 0;
 const state = {};
 
 // ── 語言切換 ──────────────────────────────
@@ -491,13 +501,14 @@ function toggleLang() {
 
 function applyLang() {
   const t = T[lang];
-  // Header
   document.getElementById("t-title").textContent = t.title;
   document.getElementById("lang-btn").textContent = t.lang_btn;
   document.getElementById("t-sheet-link").textContent = t.sheet_link;
-  // Shift bar
+  document.getElementById("t-factory-lbl").textContent = t.factory_lbl;
   document.getElementById("t-shift-lbl").textContent = t.shift_lbl;
   document.getElementById("t-group-lbl").textContent = t.group_lbl;
+  const factorySel = document.getElementById("sel-factory");
+  t.factory_names.forEach((name, i) => { if (factorySel.options[i]) factorySel.options[i].textContent = name; });
   const shiftSel = document.getElementById("sel-shift");
   shiftSel.options[0].textContent = t.shift_ph;
   shiftSel.options[1].textContent = t.shift_day;
@@ -508,17 +519,15 @@ function applyLang() {
   grpSel.options[2].textContent = t.group_B;
   grpSel.options[3].textContent = t.group_C;
   grpSel.options[4].textContent = t.group_D;
-  // Zone tabs
-  t.zones.forEach((name, i) => { document.getElementById("zt"+i).textContent = name; });
-  // Cards
+  renderZoneTabs();
   ZONES.forEach(zone => zone.machines.forEach(id => {
-    document.getElementById("mnum-"+id).innerHTML = t.machine_lbl(id);
-    document.getElementById("llbl-"+id).textContent = t.last_lbl;
-    document.getElementById("clbl-"+id).textContent = t.curr_lbl;
-    document.getElementById("stxt-"+id).textContent = t.stop_btn;
-    if (state[id]?.stopped) document.getElementById("eff-"+id).textContent = t.stopped_badge;
+    const key = zone.pfx + id;
+    document.getElementById("mnum-"+key).innerHTML = t.machine_lbl(id);
+    document.getElementById("llbl-"+key).textContent = t.last_lbl;
+    document.getElementById("clbl-"+key).textContent = t.curr_lbl;
+    document.getElementById("stxt-"+key).textContent = t.stop_btn;
+    if (state[key]?.stopped) document.getElementById("eff-"+key).textContent = t.stopped_badge;
   }));
-  // Submit & modal
   document.getElementById("t-submit").textContent = t.submit;
   document.getElementById("t-modal-title").textContent = t.modal_title;
   document.getElementById("t-lbl-running").textContent = t.lbl_running;
@@ -527,13 +536,11 @@ function applyLang() {
   document.getElementById("t-rate-lbl").textContent = t.rate_lbl;
   document.getElementById("t-btn-cancel").textContent = t.btn_cancel;
   document.getElementById("t-btn-confirm").textContent = t.btn_confirm;
-  // Notice
   document.getElementById("t-notice").innerHTML = t.notice;
-  // Progress text
   updateAll();
 }
 
-// ── Init ──────────────────────────────────
+// ── 初始化 ──────────────────────────────
 function init() {
   const now = new Date();
   document.getElementById("date-display").textContent =
@@ -541,60 +548,104 @@ function init() {
   const h = now.getHours();
   document.getElementById("sel-shift").value = (h >= 6 && h < 18) ? "day" : "night";
 
-  ZONES.forEach(z => z.machines.forEach(id => { state[id] = { stopped: false }; }));
+  ZONES.forEach(zone => zone.machines.forEach(id => {
+    state[zone.pfx + id] = { stopped: false };
+  }));
 
   const container = document.getElementById("zone-panels");
   ZONES.forEach((zone, zi) => {
     const panel = document.createElement("div");
-    panel.className = "zone-content" + (zi===0 ? " active" : "");
+    panel.className = "zone-content" + (zi === 0 ? " active" : "");
     panel.id = "zone-" + zi;
-    panel.innerHTML = zone.machines.map(id => buildCard(id)).join("");
+    panel.dataset.factory = zone.factory;
+    if (zone.factory !== currentFactory) panel.style.display = "none";
+    panel.innerHTML = zone.machines.map(id => buildCard(id, zone.pfx)).join("");
     container.appendChild(panel);
   });
 
+  renderZoneTabs();
   loadLastValues();
 }
 
-function buildCard(id) {
+function renderZoneTabs() {
+  const tabsEl = document.getElementById("zone-tabs");
+  tabsEl.innerHTML = "";
+  ZONES.forEach((zone, zi) => {
+    if (zone.factory !== currentFactory) return;
+    const tab = document.createElement("div");
+    tab.className = "zone-tab" + (zi === currentZoneIdx ? " active" : "");
+    tab.dataset.zoneIdx = zi;
+    tab.onclick = () => switchZone(zi);
+    tab.innerHTML = `<span id="zt${zi}">${zone.label[lang]}</span><span class="cnt" id="cnt${zi}">0/${zone.machines.length}</span>`;
+    tabsEl.appendChild(tab);
+  });
+}
+
+function switchFactory(factory) {
+  currentFactory = factory;
+  document.getElementById("sel-factory").value = factory;
+  document.querySelectorAll(".zone-content").forEach(panel => {
+    if (panel.dataset.factory === factory) {
+      panel.style.display = "";
+    } else {
+      panel.style.display = "none";
+      panel.classList.remove("active");
+    }
+  });
+  const firstIdx = ZONES.findIndex(z => z.factory === factory);
+  currentZoneIdx = firstIdx >= 0 ? firstIdx : 0;
+  renderZoneTabs();
+  switchZone(currentZoneIdx);
+  updateAll();
+}
+
+function buildCard(id, pfx) {
+  const key = pfx + id;
   const t = T[lang];
   return `
-  <div class="machine-card" id="card-${id}">
+  <div class="machine-card" id="card-${key}">
     <div class="card-top">
-      <div class="machine-num" id="mnum-${id}">${t.machine_lbl(id)}</div>
-      <div class="efficiency-badge" id="eff-${id}">—</div>
+      <div class="machine-num" id="mnum-${key}">${t.machine_lbl(id)}</div>
+      <div class="efficiency-badge" id="eff-${key}">—</div>
     </div>
     <div class="card-body">
       <div class="field">
-        <label id="llbl-${id}">${t.last_lbl}</label>
-        <div class="last-val" id="lv-${id}" style="color:#aaa;font-size:13px">…</div>
+        <label id="llbl-${key}">${t.last_lbl}</label>
+        <div class="last-val" id="lv-${key}" style="color:#aaa;font-size:13px">…</div>
       </div>
       <div class="field">
-        <label id="clbl-${id}">${t.curr_lbl}</label>
+        <label id="clbl-${key}">${t.curr_lbl}</label>
         <input type="number" inputmode="decimal" placeholder="0"
-          id="inp-${id}" data-last="0" oninput="onInput(${id})" disabled>
+          id="inp-${key}" data-last="0" oninput="onInput('${key}')" disabled>
       </div>
-      <button class="stop-btn" id="stopbtn-${id}" onclick="toggleStop(${id})" disabled>
+      <button class="stop-btn" id="stopbtn-${key}" onclick="toggleStop('${key}')" disabled>
         <span class="icon">⏸</span>
-        <span id="stxt-${id}">${t.stop_btn}</span>
+        <span id="stxt-${key}">${t.stop_btn}</span>
       </button>
     </div>
   </div>`;
 }
 
-// ── 從 GAS 讀取上次時數 ────────────────────
+// ── 從 GAS 讀取上次時數 ──────────────────
+// doGet 現在回傳 key 格式為 "廠別:機台號"，向下相容舊資料（無廠別）預設為 織一
 async function loadLastValues() {
   try {
     const res  = await fetch(GAS_URL, { credentials: 'omit', redirect: 'follow' });
     const data = await res.json();
 
     ZONES.forEach(zone => zone.machines.forEach(id => {
-      const lv  = document.getElementById('lv-'  + id);
-      const inp = document.getElementById('inp-' + id);
-      const btn = document.getElementById('stopbtn-' + id);
-      const val = data[String(id)];
+      const key = zone.pfx + id;
+      const lv  = document.getElementById('lv-'  + key);
+      const inp = document.getElementById('inp-' + key);
+      const btn = document.getElementById('stopbtn-' + key);
+      // Lookup by "廠別:機台號"; fall back to plain id for old data (treated as 織一)
+      const lookupKey = zone.factory === '織一'
+        ? (data[zone.factory + ':' + id] !== undefined ? zone.factory + ':' + id : String(id))
+        : zone.factory + ':' + id;
+      const val = data[lookupKey];
 
       if (val !== undefined && val !== null && val !== '') {
-        lastHoursMap[id] = val;
+        lastHoursMap[key] = val;
         lv.textContent  = Number(val).toLocaleString();
         lv.style.color  = '';
         lv.style.fontSize = '';
@@ -609,9 +660,10 @@ async function loadLastValues() {
     }));
   } catch (err) {
     ZONES.forEach(zone => zone.machines.forEach(id => {
-      const lv  = document.getElementById('lv-'  + id);
-      const inp = document.getElementById('inp-' + id);
-      const btn = document.getElementById('stopbtn-' + id);
+      const key = zone.pfx + id;
+      const lv  = document.getElementById('lv-'  + key);
+      const inp = document.getElementById('inp-' + key);
+      const btn = document.getElementById('stopbtn-' + key);
       lv.textContent = T[lang].load_fail;
       lv.style.color = '#c62828';
       inp.disabled = false;
@@ -621,14 +673,14 @@ async function loadLastValues() {
   updateAll();
 }
 
-// ── 互動 ──────────────────────────────────
-function onInput(id) {
-  const inp = document.getElementById("inp-"+id);
-  const val = parseFloat(inp.value);
+// ── 互動 ─────────────────────────────────
+function onInput(key) {
+  const inp  = document.getElementById("inp-"+key);
+  const val  = parseFloat(inp.value);
   const last = parseFloat(inp.dataset.last);
   inp.classList.remove("invalid");
-  const effEl = document.getElementById("eff-"+id);
-  const card  = document.getElementById("card-"+id);
+  const effEl = document.getElementById("eff-"+key);
+  const card  = document.getElementById("card-"+key);
 
   if (inp.value === "" || isNaN(val)) {
     effEl.textContent = "—"; effEl.className = "efficiency-badge";
@@ -638,7 +690,7 @@ function onInput(id) {
     effEl.textContent = "?"; effEl.className = "efficiency-badge";
     card.className = "machine-card";
   } else {
-    const eff = (val - last) / 120;  // ÷10（去小數點）÷12（班次）
+    const eff = (val - last) / 120;
     effEl.textContent = (eff * 100).toFixed(1) + "%";
     effEl.className = "efficiency-badge " + (eff >= 0.85 ? "good" : eff >= 0.6 ? "mid" : "low");
     card.className = "machine-card filled";
@@ -646,14 +698,14 @@ function onInput(id) {
   updateAll();
 }
 
-function toggleStop(id) {
-  state[id].stopped = !state[id].stopped;
-  const inp  = document.getElementById("inp-"+id);
-  const btn  = document.getElementById("stopbtn-"+id);
-  const effEl= document.getElementById("eff-"+id);
-  const card = document.getElementById("card-"+id);
+function toggleStop(key) {
+  state[key].stopped = !state[key].stopped;
+  const inp   = document.getElementById("inp-"+key);
+  const btn   = document.getElementById("stopbtn-"+key);
+  const effEl = document.getElementById("eff-"+key);
+  const card  = document.getElementById("card-"+key);
 
-  if (state[id].stopped) {
+  if (state[key].stopped) {
     btn.classList.add("active");
     inp.disabled = true; inp.value = "";
     effEl.textContent = T[lang].stopped_badge;
@@ -668,44 +720,54 @@ function toggleStop(id) {
   updateAll();
 }
 
-function isFilled(id) {
-  if (state[id].stopped) return true;
-  const inp = document.getElementById("inp-"+id);
+function isFilled(key) {
+  if (state[key]?.stopped) return true;
+  const inp = document.getElementById("inp-" + key);
   if (!inp) return false;
   const val = parseFloat(inp.value), last = parseFloat(inp.dataset.last);
   return !isNaN(val) && val >= last;
 }
 
 function updateAll() {
-  const allIds = ZONES.flatMap(z => z.machines);
-  const total = allIds.length;
-  const done  = allIds.filter(isFilled).length;
+  const factoryZones = ZONES.filter(z => z.factory === currentFactory);
+  const allKeys = factoryZones.flatMap(z => z.machines.map(id => z.pfx + id));
+  const total = allKeys.length;
+  const done  = allKeys.filter(key => isFilled(key)).length;
   const pct   = Math.round(done / total * 100);
   document.getElementById("progress-fill").style.width = pct + "%";
   document.getElementById("progress-text").textContent = T[lang].progress(done, total);
-  ZONES.forEach((zone,zi) => {
-    const d = zone.machines.filter(isFilled).length;
-    document.getElementById("cnt"+zi).textContent = d+"/"+zone.machines.length;
+  factoryZones.forEach(zone => {
+    const zi = ZONES.indexOf(zone);
+    const cntEl = document.getElementById("cnt" + zi);
+    if (!cntEl) return;
+    const d = zone.machines.filter(id => isFilled(zone.pfx + id)).length;
+    cntEl.textContent = d + "/" + zone.machines.length;
   });
 }
 
 function switchZone(zi) {
-  document.querySelectorAll(".zone-tab").forEach((t,i) => t.classList.toggle("active", i===zi));
-  document.querySelectorAll(".zone-content").forEach((p,i) => p.classList.toggle("active", i===zi));
+  currentZoneIdx = zi;
+  document.querySelectorAll(".zone-tab").forEach(t => {
+    t.classList.toggle("active", parseInt(t.dataset.zoneIdx) === zi);
+  });
+  document.querySelectorAll(".zone-content").forEach(p => {
+    p.classList.toggle("active", p.id === "zone-" + zi);
+  });
 }
 
 function openSummary() {
-  const allIds = ZONES.flatMap(z => z.machines);
+  const factoryZones = ZONES.filter(z => z.factory === currentFactory);
   let running=0, stopped=0, empty=0, totalEff=0, effCount=0;
-  allIds.forEach(id => {
-    if (state[id].stopped) { stopped++; return; }
-    const inp  = document.getElementById("inp-"+id);
+  factoryZones.forEach(zone => zone.machines.forEach(id => {
+    const key = zone.pfx + id;
+    if (state[key].stopped) { stopped++; return; }
+    const inp  = document.getElementById("inp-"+key);
     const val  = parseFloat(inp?.value);
     const last = parseFloat(inp?.dataset.last);
     if (!isNaN(val) && val >= last) {
       running++; totalEff += (val-last)/120; effCount++;
     } else { empty++; }
-  });
+  }));
   document.getElementById("sum-running").textContent = running;
   document.getElementById("sum-stop").textContent    = stopped;
   document.getElementById("sum-empty").textContent   = empty;
@@ -722,18 +784,20 @@ async function submitData() {
   btn.textContent = T[lang].submit_ing;
   btn.disabled = true;
 
-  const allIds = ZONES.flatMap(z => z.machines);
-  const records = allIds.map(id => {
-    const inp         = document.getElementById('inp-' + id);
-    const lastHours   = parseFloat(inp.dataset.last) || 0;
-    const currentHours= parseFloat(inp.value) || 0;
-    const stopped     = state[id].stopped;
-    const efficiency  = stopped ? null
+  const factoryZones = ZONES.filter(z => z.factory === currentFactory);
+  const records = factoryZones.flatMap(zone => zone.machines.map(id => {
+    const key          = zone.pfx + id;
+    const inp          = document.getElementById('inp-' + key);
+    const lastHours    = parseFloat(inp.dataset.last) || 0;
+    const currentHours = parseFloat(inp.value) || 0;
+    const stopped      = state[key].stopped;
+    const efficiency   = stopped ? null
       : parseFloat(((currentHours - lastHours) / 120 * 100).toFixed(1));
     return { machineId: id, lastHours, currentHours, efficiency, stopped };
-  });
+  }));
 
   const payload = {
+    factory: currentFactory,
     shift:   document.getElementById('sel-shift').value,
     group:   document.getElementById('sel-group').value,
     records,

@@ -2,6 +2,8 @@ const SHEET_ID = '1cVAV8odDf457CJHGuV_Yy7JOB97vbiCWy2Y4x-bfE4M';
 const RECORD_TAB = '登記紀錄';
 
 // ── 前端讀取上次時數 ──────────────────────────
+// 回傳格式：{ "廠別:機台號": 本次時數, ... }
+// 舊資料無廠別欄位時向下相容，預設視為 織一
 function doGet(e) {
   try {
     const ss = SpreadsheetApp.openById(SHEET_ID);
@@ -15,12 +17,12 @@ function doGet(e) {
     const h = data[0];
     const C = {
       time:    h.indexOf('時間戳記'),
+      factory: h.indexOf('廠別'),
       machine: h.indexOf('機台號'),
       current: h.indexOf('本次時數'),
       stopped: h.indexOf('停機'),
     };
 
-    // 每台機台取最新一筆非停機的本次時數
     const latest = {};
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
@@ -29,9 +31,13 @@ function doGet(e) {
       if (row[C.stopped]) continue;
       if (row[C.current] === '' || row[C.current] === null) continue;
 
+      // 向下相容：舊資料無廠別欄位預設為 織一
+      const factory = (C.factory >= 0 && row[C.factory]) ? String(row[C.factory]) : '織一';
+      const key = factory + ':' + id;
+
       const t = new Date(row[C.time]);
-      if (!latest[id] || t > latest[id].t) {
-        latest[id] = { t, hours: row[C.current] };
+      if (!latest[key] || t > latest[key].t) {
+        latest[key] = { t, hours: row[C.current] };
       }
     }
 
@@ -57,17 +63,19 @@ function doPost(e) {
 
     // 建立表頭（第一次使用）
     if (sheet.getLastRow() === 0) {
-      sheet.appendRow(['時間戳記','班別','組別','機台號','上次時數','本次時數','稼動率%','停機']);
+      sheet.appendRow(['時間戳記','廠別','班別','組別','機台號','上次時數','本次時數','稼動率%','停機']);
       sheet.setFrozenRows(1);
     }
 
     const ts      = Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'yyyy-MM-dd HH:mm:ss');
+    const factory = payload.factory || '織一';
     const shift   = payload.shift;
     const group   = payload.group;
     const records = payload.records;
 
     const rows = records.map(r => [
       ts,
+      factory,
       shift,
       group,
       r.machineId,
