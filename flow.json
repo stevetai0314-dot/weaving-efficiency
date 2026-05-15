@@ -1,0 +1,33 @@
+{
+  "app": "weaving-efficiency",
+  "description": "織布機效率記錄，三個工廠共 398 台機器，依走動路線排列",
+  "url": "https://stevetai0314-dot.github.io/weaving-efficiency/",
+  "tech": {
+    "frontend": "Vanilla HTML/JS, GitHub Pages",
+    "backend": "Google Apps Script",
+    "storage": "Google Sheets"
+  },
+  "factories": ["織一", "織二", "織三"],
+  "total_machines": 398,
+  "zones_design": {
+    "key_principle": "machines 陣列的順序就是工人走動路線，不做任何 sort",
+    "id_conflict_solution": "織三使用 pfx: 'T3_' 前綴避免與織一/織二 ID 重疊",
+    "rendering": "依陣列順序渲染，一對一映射，不排序"
+  },
+  "efficiency": {
+    "formula": "(current_hours - prev_hours) / 120 * 100",
+    "thresholds": {
+      "green": "≥ 85%",
+      "orange": "60–84%",
+      "red": "< 60%"
+    },
+    "prev_hours_source": "GAS GET on page load, skips stopped machines"
+  },
+  "offline_queue": null,
+  "gas": {
+    "sheets": {
+      "Data": "效率記錄，含時間戳記"
+    }
+  },
+  "languages": ["zh-TW", "vi"]
+}
