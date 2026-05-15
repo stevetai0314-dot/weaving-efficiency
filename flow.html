@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>織布效率記錄 - 系統流程圖</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; background: #f0f2f5; margin: 0; }
+    h1 { color: #1e8e3e; margin-bottom: 4px; }
+    .subtitle { color: #888; font-size: 14px; margin-bottom: 24px; }
+    .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .card h2 { color: #333; margin-top: 0; font-size: 16px; border-left: 4px solid #1e8e3e; padding-left: 10px; }
+    .notes { background: #e6f4ea; border-radius: 8px; padding: 16px; }
+    .notes h3 { color: #1e8e3e; margin-top: 0; font-size: 14px; }
+    .notes ul { margin: 0; padding-left: 20px; font-size: 13px; color: #333; }
+    .notes li { margin-bottom: 6px; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; margin-right: 4px; }
+    .tag-green { background: #e6f4ea; color: #1e8e3e; }
+    .tag-blue { background: #e8f0fe; color: #1a73e8; }
+    .tag-orange { background: #fce8b2; color: #e65100; }
+  </style>
+</head>
+<body>
+  <h1>織布效率記錄 系統流程圖</h1>
+  <p class="subtitle">weaving-efficiency · GitHub Pages + Google Apps Script + Google Sheets · 398 台機器</p>
+
+  <div class="card">
+    <h2>主流程</h2>
+    <div class="mermaid">
+graph TD
+    A([開啟頁面]) --> B[選擇工廠\n織一 / 織二 / 織三]
+    B --> C[從 GAS 載入\n前一班機時數]
+    C --> D[顯示 Zone 分頁]
+    D --> E[Zone 內機台\n依走動路線陣列順序排列]
+    E --> F[輸入當前機時]
+    F --> G[即時計算效率\n當前 - 前班 ÷ 120 × 100%]
+    G --> H{效率值}
+    H -- ≥ 85% --> I[綠色顯示]
+    H -- 60–84% --> J[橘色顯示]
+    H -- < 60% --> K[紅色顯示]
+    I & J & K --> L{全部輸入?}
+    L -- 否 --> F
+    L -- 是 --> M[批次送出]
+    M --> N[(Data 工作表\n附時間戳記)]
+
+    style I fill:#e6f4ea,stroke:#1e8e3e
+    style J fill:#fce8b2,stroke:#e65100
+    style K fill:#fce8e8,stroke:#d32f2f
+    style N fill:#e6f4ea,stroke:#1e8e3e
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>走動路線邏輯（最重要的設計）</h2>
+    <div class="mermaid">
+graph LR
+    A[ZONES 陣列定義] --> B[factory: 織一\nlabel: 第一區\nmachines: 1,2,179,4,181...]
+    A --> C[factory: 織三\npfx: T3_\nmachines: 68,67,66,86...]
+    B --> D[渲染時依陣列順序\n不做任何 sort]
+    C --> D
+    D --> E[機台 1,2,179,4,181\n按這個順序顯示在畫面上]
+    E --> F[工人按此順序走動\n不需要回頭找機台]
+
+    style D fill:#fce8b2,stroke:#e65100
+    style F fill:#e6f4ea,stroke:#1e8e3e
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>跨廠機台 ID 衝突解法</h2>
+    <div class="mermaid">
+graph TD
+    A[織一 機台 1] --> B[key: 1]
+    C[織三 機台 1] --> D[key: T3_1\npfx: T3_]
+    B & D --> E[DOM 和資料都用 key\n避免覆蓋]
+    E --> F[payload 附 factory 欄位\nSheets 依此區分]
+
+    style D fill:#e8f0fe,stroke:#1a73e8
+    </div>
+  </div>
+
+  <div class="card notes">
+    <h3>重點說明</h3>
+    <ul>
+      <li><span class="tag tag-orange">走動路線</span> ZONES 陣列的機台順序就是工人的實際走動路線，數字不連續是正常的（機台安裝順序 ≠ 擺放順序）</li>
+      <li><span class="tag tag-green">效率計算</span> 公式：(當前機時 - 前班機時) ÷ 120 × 100%，120 分鐘為一班</li>
+      <li><span class="tag tag-blue">前班資料</span> 頁面開啟時從 GAS GET 載入，跳過已停機的機台不帶入基準值</li>
+      <li>398 台機器橫跨織一/織二/織三，機台 ID 在不同廠有重疊，用 prefix 解決</li>
+      <li>中越雙語切換，語言選擇存在 localStorage</li>
+    </ul>
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default', flowchart: { curve: 'basis' } });</script>
+</body>
+</html>
