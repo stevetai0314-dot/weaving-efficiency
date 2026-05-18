@@ -1,11 +1,50 @@
 const SHEET_ID = '1cVAV8odDf457CJHGuV_Yy7JOB97vbiCWy2Y4x-bfE4M';
 const RECORD_TAB = '登記紀錄';
+const PLAN_TAB   = '開機計畫';
+
+// ── 讀取開機計畫 ──────────────────────────────
+// 回傳格式：{ open: ["3","5","6",...] }  ← 有在「開機」欄的機台號
+function getPlan() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName(PLAN_TAB);
+  if (!sheet) return jsonOut({ open: [] });
+
+  const data = sheet.getDataRange().getValues();
+  let headerRow = -1, openCol = -1;
+
+  for (let i = 0; i < data.length; i++) {
+    for (let j = 0; j < data[i].length; j++) {
+      if (String(data[i][j]).trim() === '開機') {
+        headerRow = i;
+        openCol = j;
+        break;
+      }
+    }
+    if (headerRow >= 0) break;
+  }
+
+  if (headerRow < 0) return jsonOut({ open: [] });
+
+  const open = [];
+  for (let i = headerRow + 1; i < data.length; i++) {
+    const val = data[i][openCol];
+    if (val !== '' && val !== null && val !== undefined) {
+      const num = parseInt(val);
+      if (!isNaN(num)) open.push(String(num));
+    }
+  }
+
+  return jsonOut({ open });
+}
 
 // ── 前端讀取上次時數 ──────────────────────────
 // 回傳格式：{ "廠別:機台號": 本次時數, ... }
 // 舊資料無廠別欄位時向下相容，預設視為 織一
 function doGet(e) {
   try {
+    if (e.parameter && e.parameter.action === 'plan') {
+      return getPlan();
+    }
     const ss = SpreadsheetApp.openById(SHEET_ID);
     const sheet = ss.getSheetByName(RECORD_TAB);
 

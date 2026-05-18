@@ -152,6 +152,7 @@
     transition: border-left-color 0.2s, background 0.2s, opacity 0.2s;
   }
   .machine-card.filled  { border-left-color: #2e7d32; }
+  .machine-card[data-plan-stop] { background: #fff8e1; border-left-color: #f57c00; }
   .machine-card.stopped { border-left-color: #c62828; background: #fff5f5; opacity: 0.80; }
 
   .card-top {
@@ -470,6 +471,7 @@ const T = {
 };
 
 const lastHoursMap = {};
+let planOpenSet = new Set();
 
 // 7 zones across 3 factories.
 // pfx: DOM ID prefix to avoid conflicts when machine numbers overlap (織三 vs 織一).
@@ -565,6 +567,7 @@ function init() {
 
   renderZoneTabs();
   loadLastValues();
+  loadPlan();
 }
 
 function renderZoneTabs() {
@@ -671,6 +674,36 @@ async function loadLastValues() {
     }));
   }
   updateAll();
+}
+
+// ── 從開機計畫讀取停機預告 ──────────────────
+// 織一/織二 的機台若不在「開機」清單內，加上 data-plan-stop 屬性顯示橘黃底色提示
+async function loadPlan() {
+  try {
+    const res  = await fetch(GAS_URL + '?action=plan', { credentials: 'omit', redirect: 'follow' });
+    const data = await res.json();
+    if (Array.isArray(data.open)) {
+      planOpenSet = new Set(data.open.map(String));
+      applyPlanStyles();
+    }
+  } catch (err) {
+    // 讀取失敗時不顯示提示，不影響正常填表
+  }
+}
+
+function applyPlanStyles() {
+  ZONES.forEach(zone => {
+    if (zone.factory !== '織一' && zone.factory !== '織二') return;
+    zone.machines.forEach(id => {
+      const card = document.getElementById('card-' + zone.pfx + id);
+      if (!card) return;
+      if (planOpenSet.has(String(id))) {
+        delete card.dataset.planStop;
+      } else {
+        card.dataset.planStop = '';
+      }
+    });
+  });
 }
 
 // ── 互動 ─────────────────────────────────
