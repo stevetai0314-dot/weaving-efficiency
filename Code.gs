@@ -23,6 +23,26 @@ function doGet(e) {
       stopped: h.indexOf('停機'),
     };
 
+    // Pass 1: find the latest date per machine key
+    const latestDate = {};
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      const id  = String(row[C.machine]);
+      if (!id) continue;
+      if (row[C.stopped]) continue;
+      if (row[C.current] === '' || row[C.current] === null) continue;
+
+      const factory = (C.factory >= 0 && row[C.factory]) ? String(row[C.factory]) : '織一';
+      const key = factory + ':' + id;
+
+      const t = new Date(row[C.time]);
+      const dateStr = Utilities.formatDate(t, 'Asia/Ho_Chi_Minh', 'yyyy-MM-dd');
+      if (!latestDate[key] || dateStr > latestDate[key]) {
+        latestDate[key] = dateStr;
+      }
+    }
+
+    // Pass 2: among rows on the latest date, keep the max hours
     const latest = {};
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
@@ -31,13 +51,15 @@ function doGet(e) {
       if (row[C.stopped]) continue;
       if (row[C.current] === '' || row[C.current] === null) continue;
 
-      // 向下相容：舊資料無廠別欄位預設為 織一
       const factory = (C.factory >= 0 && row[C.factory]) ? String(row[C.factory]) : '織一';
       const key = factory + ':' + id;
 
       const t = new Date(row[C.time]);
-      if (!latest[key] || t > latest[key].t) {
-        latest[key] = { t, hours: row[C.current] };
+      const dateStr = Utilities.formatDate(t, 'Asia/Ho_Chi_Minh', 'yyyy-MM-dd');
+      if (dateStr !== latestDate[key]) continue;
+
+      if (!latest[key] || row[C.current] > latest[key].hours) {
+        latest[key] = { hours: row[C.current] };
       }
     }
 
